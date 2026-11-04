@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Сбор лидов · EspoCRM</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f4f6fa;color:#172538;font:15px system-ui,sans-serif}main{max-width:1200px;margin:auto;padding:28px}header{display:flex;align-items:center;justify-content:space-between;gap:20px}h1{font-size:27px;margin:0}h2{font-size:18px;margin:0 0 18px}.muted{color:#63738a}a{color:#255acb}section{background:white;border:1px solid #dde3ec;border-radius:12px;padding:22px;margin:22px 0}form{display:grid;grid-template-columns:1fr 1fr 2fr 1fr;gap:16px}label{display:flex;flex-direction:column;gap:7px}input,select,button{font:inherit;border:1px solid #bdc9d9;border-radius:7px;padding:10px;background:white}button{cursor:pointer;color:#255acb}button.primary{background:#255acb;color:white;border-color:#255acb}button:disabled{opacity:.5;cursor:wait}.actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:16px}.wide{grid-column:span 2}table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:12px 10px;border-bottom:1px solid #e6ebf1;font-size:14px;vertical-align:top}th{color:#63738a;font-weight:500}.scroll{overflow-x:auto}.badge{display:inline-block;padding:3px 8px;background:#edf2fa;border-radius:5px;white-space:nowrap}.error{color:#ad2737;white-space:pre-wrap}#message{min-height:22px}.small{font-size:12px}td button{padding:5px 8px;font-size:12px;margin:3px}.url{word-break:break-word}footer{color:#63738a;font-size:12px}@media(max-width:700px){main{padding:16px}form{grid-template-columns:1fr 1fr}header{align-items:flex-start}h1{font-size:22px}.wide{grid-column:span 2}}
+</style>
+<main>
+<header><div><h1>Сбор компаний</h1><p class="muted">Яндекс.Карты и 2ГИС → лиды в EspoCRM</p></div><a id="crm" href="http://localhost:8080/#Lead">Открыть CRM ↗</a></header>
+<section><h2>Новый сбор</h2>
+<form id="collect">
+<label>Источник<select name="source"><option value="yandex">Яндекс.Карты</option><option value="2gis">2ГИС</option></select></label>
+<label>Город<input name="city" placeholder="Москва" required maxlength="150"><span class="muted small" id="cityHint">Название города</span></label>
+<label>Что искать<input name="query" placeholder="Стоматологии" required maxlength="200"></label>
+<label>Лимит компаний<input name="limit" type="number" value="100" min="1" max="10000" required></label>
+<label class="wide">Ссылка поиска (необязательно)<input name="url" type="url" placeholder="https://…"></label>
+<label>Пауза, секунд<input name="delay" type="number" value="2" min="1" max="120" required></label>
+<label>Обход Яндекса<select name="grid"><option value="true">Сетка по городу</option><option value="false">Одна область</option></select></label>
+<div class="actions wide"><button class="primary" type="submit">Собрать и отправить в CRM</button></div>
+</form><p class="muted small">Задания выполняются по очереди. При CAPTCHA сбор остановится, уже найденные компании сохранятся.</p><p id="message" role="status" aria-live="polite"></p></section>
+<section><h2>Задания</h2><div class="scroll"><table><thead><tr><th>Источник / запрос</th><th>Состояние</th><th>Компаний</th><th>Действия</th></tr></thead><tbody id="jobs"></tbody></table></div></section>
+<section><header><h2>Найденные компании <span class="muted" id="counts"></span></h2><button id="sync">Повторить отправку в CRM</button></header>
+<div class="actions"><label>Сайт<select id="website"><option value="">Все компании</option><option value="Present">Сайт указан</option><option value="NotListed">Сайт не указан</option></select></label><label>Поиск<input id="search" placeholder="Название, город, телефон"></label></div>
+<p class="muted small">«Не указан» означает отсутствие ссылки в собранных карточках; у компании может быть сайт. Здесь показаны последние 500 компаний; вся база доступна в CRM.</p>
+<div class="scroll"><table><thead><tr><th>Компания</th><th>Контакты</th><th>Сайт</th><th>Импорт</th></tr></thead><tbody id="companies"></tbody></table></div></section>
+<footer>Учёт лидов — EspoCRM · Все исходные карточки сохраняются вместе с контактами.</footer>
+</main>
+<script>
+const $=s=>document.querySelector(s), states={queued:'В очереди',running:'Собирается',done:'Завершено',stopped:'Остановлено',interrupted:'Прервано',blocked:'Ограничение доступа',error:'Ошибка'};
+let companies=[],crmUrl='';
+const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n};
+function link(text,url){const a=el('a',text);try{const u=new URL(url);if(['https:','http:'].includes(u.protocol)){a.href=u.href;a.target='_blank';a.rel='noopener noreferrer'}}catch{}return a}
+function message(text,error=false){$('#message').textContent=text;$('#message').className=error?'error':''}
+async function post(path,data={}){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const v=await r.json();if(!r.ok)throw Error(v.error||'Не удалось выполнить запрос');return v}
+function action(title,path,id){const b=el('button',title);b.type='button';b.onclick=async()=>{b.disabled=true;try{await post(path,{id});await refresh()}catch(e){message(e.message,true)}finally{b.disabled=false}};return b}
+function drawCompanies(){const body=$('#companies');body.replaceChildren();let rows=companies.filter(r=>(!$('#website').value||r.data.website_status===$('#website').value)&&JSON.stringify(r.data).toLowerCase().includes($('#search').value.toLowerCase()));for(const r of rows){const d=r.data,tr=el('tr'),name=el('td');name.append(el('strong',d.name),el('div',[d.city,d.address].filter(Boolean).join(', '),'muted small'));for(const s of d.sources)name.append(link(s.source==='yandex'?'Яндекс ':'2ГИС ',s.url));tr.append(name);const contacts=el('td');for(const p of d.phones)contacts.append(el('div',p));for(const e of d.emails)contacts.append(el('div',e));tr.append(contacts);const sites=el('td');if(d.websites.length)for(const u of d.websites)sites.append(link(u,u),el('br'));else sites.textContent='Не указан';sites.className='url';tr.append(sites);const status=el('td');if(r.crm_id)status.append(link(r.revision===r.synced_revision?'В CRM':'Ожидает обновления',crmUrl+'/#Lead/view/'+r.crm_id));else status.textContent='Ожидает отправки';if(r.error)status.append(el('div',r.error,'error small'));tr.append(status);body.append(tr)}if(!rows.length){const td=el('td','Компаний пока нет');td.colSpan=4;body.append(el('tr')).append(td)}}
+async function refresh(){try{const response=await fetch('/api/status');if(!response.ok)throw Error('Панель недоступна');const data=await response.json();companies=data.companies;crmUrl=data.crm_url.replace(/\/$/,'');$('#crm').href=crmUrl+'/#Lead';$('#counts').textContent=`${data.total} · ожидают отправки: ${data.pending}`;const jobs=$('#jobs');jobs.replaceChildren();for(const j of data.jobs){const tr=el('tr'),name=el('td',`${j.config.source==='yandex'?'Яндекс':'2ГИС'} · ${j.config.city} · ${j.config.query}`),status=el('td');status.append(el('span',states[j.status]||j.status,'badge'));if(j.error)status.append(el('div',j.error,'error small'));tr.append(name,status,el('td',j.count));const actions=el('td');if(['running','queued'].includes(j.status))actions.append(action('Остановить','/api/stop',j.id));else if(j.status!=='done')actions.append(action('Продолжить','/api/resume',j.id));tr.append(actions);jobs.append(tr)}drawCompanies()}catch(e){message(e.message,true)}}
+$('#collect').onsubmit=async e=>{e.preventDefault();const form=e.currentTarget,b=form.querySelector('button');b.disabled=true;try{const data=Object.fromEntries(new FormData(form));data.grid=data.grid==='true';await post('/api/jobs',data);message('Задание добавлено. Компании будут автоматически отправлены в CRM.');await refresh()}catch(e){message(e.message,true)}finally{b.disabled=false}};
+$('#sync').onclick=async()=>{const b=$('#sync');b.disabled=true;try{const r=await post('/api/sync');message(`Отправлено: ${r.synced}. Ожидают: ${r.pending}.`+(r.errors.length?' '+r.errors[0].error:''),!!r.errors.length);await refresh()}catch(e){message(e.message,true)}finally{b.disabled=false}};
+$('[name=source]').onchange=e=>{$('#cityHint').textContent=e.target.value==='2gis'?'Slug города: moscow, spb, kazan':'Название города';$('[name=city]').placeholder=e.target.value==='2gis'?'moscow':'Москва'};
+$('#website').onchange=drawCompanies;$('#search').oninput=drawCompanies;refresh();setInterval(refresh,4000);
+</script>
+</html>

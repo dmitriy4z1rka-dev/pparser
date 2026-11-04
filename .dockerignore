@@ -1,0 +1,9 @@
+**/.git
+**/.venv
+**/node_modules
+**/vendor
+**/__pycache__
+**/*.pyc
+.env
+var
+espocrm/data

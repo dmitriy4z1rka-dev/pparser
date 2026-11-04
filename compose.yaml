@@ -1,0 +1,102 @@
+name: map-leads
+services:
+  db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: espocrm
+      MARIADB_USER: espocrm
+      MARIADB_PASSWORD: ${DB_PASSWORD:?Run python3 scripts/setup.py}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Run python3 scripts/setup.py}
+    volumes:
+      - db:/var/lib/mysql
+    healthcheck:
+      test: [CMD, healthcheck.sh, --connect, --innodb_initialized]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  espocrm:
+    image: map-leads-espocrm:10.0.11
+    build:
+      context: .
+      dockerfile: docker/espocrm.Dockerfile
+    restart: unless-stopped
+    environment:
+      ESPOCRM_DATABASE_HOST: db
+      ESPOCRM_DATABASE_USER: espocrm
+      ESPOCRM_DATABASE_PASSWORD: ${DB_PASSWORD}
+      ESPOCRM_ADMIN_USERNAME: ${ADMIN_USER:-admin}
+      ESPOCRM_ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Run python3 scripts/setup.py}
+      ESPOCRM_SITE_URL: ${ESPO_PUBLIC_URL:-http://localhost:8080}
+      ESPOCRM_LANGUAGE: ru_RU
+      ESPOCRM_TIME_ZONE: Europe/Moscow
+    ports:
+      - "127.0.0.1:8080:80"
+    volumes:
+      - crm-data:/var/www/html/data
+      - crm-custom:/var/www/html/custom
+      - crm-client-custom:/var/www/html/client/custom
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD-SHELL, 'test "$$(bin/command config:get isInstalled)" = "true"']
+      interval: 10s
+      timeout: 10s
+      start_period: 60s
+      retries: 30
+
+  crm-setup:
+    image: map-leads-espocrm:10.0.11
+    build:
+      context: .
+      dockerfile: docker/espocrm.Dockerfile
+    entrypoint: [/bin/sh, /opt/leadgen/setup-crm.sh]
+    environment:
+      ESPO_API_KEY: ${ESPO_API_KEY:?Run python3 scripts/setup.py}
+      LEADGEN_PUBLIC_URL: ${LEADGEN_PUBLIC_URL:-http://localhost:8090}
+    volumes:
+      - crm-data:/var/www/html/data
+      - crm-custom:/var/www/html/custom
+      - crm-client-custom:/var/www/html/client/custom
+    depends_on:
+      espocrm:
+        condition: service_healthy
+
+  crm-daemon:
+    image: map-leads-espocrm:10.0.11
+    restart: unless-stopped
+    entrypoint: [docker-daemon.sh]
+    volumes:
+      - crm-data:/var/www/html/data
+      - crm-custom:/var/www/html/custom
+      - crm-client-custom:/var/www/html/client/custom
+    depends_on:
+      crm-setup:
+        condition: service_completed_successfully
+
+  collectors:
+    build: .
+    restart: unless-stopped
+    init: true
+    shm_size: 1gb
+    environment:
+      ESPO_URL: http://espocrm
+      ESPO_PUBLIC_URL: ${ESPO_PUBLIC_URL:-http://localhost:8080}
+      ESPO_API_KEY: ${ESPO_API_KEY}
+      DGIS_API_KEY: ${DGIS_API_KEY:-}
+      LEADGEN_DATA: /data
+    ports:
+      - "127.0.0.1:8090:8090"
+    volumes:
+      - collector-data:/data
+    depends_on:
+      crm-setup:
+        condition: service_completed_successfully
+volumes:
+  db:
+  crm-data:
+  crm-custom:
+  crm-client-custom:
+  collector-data:

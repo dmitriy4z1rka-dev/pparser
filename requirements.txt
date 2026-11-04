@@ -1,0 +1,8 @@
+httpx>=0.28.1,<1
+playwright>=1.61.0,<2
+pychrome>=0.2.4,<1
+pydantic>=2.0,<3
+psutil>=5.4.8,<8
+requests>=2.32,<3
+xlsxwriter>=3.0.5,<4
+Flask>=3.1,<4
