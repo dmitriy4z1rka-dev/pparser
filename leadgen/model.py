@@ -45,14 +45,16 @@ def website(value):
         value = "https://" + value
     try:
         parts = urlsplit(value)
-        host = (parts.hostname or "").lower().removeprefix("www.")
+        host = (parts.hostname or "").lower().removeprefix("www.").encode("idna").decode("ascii")
+        port = parts.port
         _ = parts.port  # Validate malformed ports too.
         if parts.scheme not in ("http", "https") or "." not in host or parts.username or parts.password:
             return ""
         # Keep meaningful query parameters (some company sites need them).
         query = urlencode([(k, v) for k, v in parse_qsl(parts.query)
                            if not k.lower().startswith("utm_") and k.lower() not in {"yclid", "gclid", "fbclid"}])
-        return urlunsplit((parts.scheme, parts.netloc.lower(), parts.path or "/", query, ""))
+        netloc = host + (f":{port}" if port is not None else "")
+        return urlunsplit((parts.scheme.lower(), netloc, parts.path or "/", query, ""))
     except ValueError:
         return ""
 

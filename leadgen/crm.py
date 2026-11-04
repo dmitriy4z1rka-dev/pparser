@@ -65,6 +65,13 @@ class EspoClient:
             "cYandexUrl": next((s["url"] for s in data["sources"] if s["source"] == "yandex"), ""),
             "cGisUrl": next((s["url"] for s in data["sources"] if s["source"] == "2gis"), ""),
         }
+        metrics = data.get("source_metrics", {})
+        for source, fields in (("yandex", ("cYandexRating", "cYandexReviews")),
+                               ("2gis", ("cGisRating", "cGisReviews"))):
+            values = metrics.get(source, {})
+            for key, value in zip(fields, (values.get("rating"), values.get("review_count"))):
+                if value is not None:
+                    payload[key] = value
         if not existing:
             payload.update({"firstName": "", "lastName": data["name"][:100], "accountName": data["name"][:255],
                             "status": "New", "source": "Maps"})

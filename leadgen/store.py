@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .model import branch_key
+from .model import branch_key, website
 
 
 def now():
@@ -43,6 +43,43 @@ class Store:
                     PRIMARY KEY(job_id,source,source_id)
                 );
             """)
+            # Canonicalize legacy URLs and backfill per-source metrics.
+            for observation in db.execute("SELECT source,source_id,data FROM observations").fetchall():
+                record = json.loads(observation["data"])
+                previous_record = record.copy()
+                record["source_url"] = website(record.get("source_url"))
+                for key in ("websites", "social"):
+                    record[key] = sorted({value for item in record.get(key, []) if (value := website(item))})
+                if record != previous_record:
+                    db.execute("UPDATE observations SET data=? WHERE source=? AND source_id=?",
+                               (json.dumps(record, ensure_ascii=False), observation["source"], observation["source_id"]))
+            for company in db.execute("SELECT id,data FROM companies").fetchall():
+                observations = [json.loads(row[0]) for row in db.execute(
+                    "SELECT data FROM observations WHERE company_id=? ORDER BY seen_at,source,source_id",
+                    (company["id"],))]
+                if not observations:
+                    continue
+                metrics = {row["source"]: {"rating": row.get("rating"), "review_count": row.get("reviews")}
+                           for row in observations}
+                data = json.loads(company["data"])
+                previous_payload = json.dumps(data, ensure_ascii=False, sort_keys=True)
+                data["sources"] = [{"source": row["source"], "id": row["source_id"],
+                                    "url": website(record.get("source_url"))}
+                                   for row in db.execute(
+                                       "SELECT source,source_id,data FROM observations WHERE company_id=? "
+                                       "ORDER BY seen_at,source,source_id", (company["id"],))
+                                   for record in [json.loads(row["data"])]]
+                data["websites"] = sorted({value for row in observations
+                                           for item in row.get("websites", []) if (value := website(item))})
+                data["social"] = sorted({value for row in observations
+                                         for item in row.get("social", []) if (value := website(item))})
+                data["website_status"] = "Present" if data["websites"] else "NotListed"
+                data["source_metrics"] = metrics
+                payload = json.dumps(data, ensure_ascii=False, sort_keys=True)
+                if payload == previous_payload:
+                    continue
+                db.execute("UPDATE companies SET data=?,revision=revision+1,updated_at=? WHERE id=?",
+                           (payload, now(), company["id"]))
 
     @contextmanager
     def connect(self):
@@ -72,6 +109,9 @@ class Store:
                 for key in ("city", "address", "category", "source_url"):
                     record[key] = record[key] or previous[key]
                 record["gis_created_at"] = record["gis_created_at"] or previous.get("gis_created_at", "")
+                for key in ("rating", "reviews"):
+                    if record.get(key) is None:
+                        record[key] = previous.get(key)
             if not company_id and record["address"]:
                 record_branch = branch_key(record["city"], record["address"])
                 # Require a matching branch address. A chain's shared phone/site alone is insufficient.
@@ -94,13 +134,17 @@ class Store:
                 "SELECT data FROM observations WHERE company_id=? ORDER BY seen_at,source,source_id", (company_id,))]
             merged = dict(records[0])
             for item in records[1:]:
-                for key in ("name", "city", "address", "category", "rating", "reviews", "gis_created_at"):
+                for key in ("name", "city", "address", "category", "gis_created_at"):
                     if item.get(key) is not None and item.get(key) != "":
                         merged[key] = item[key]
                 for key in ("phones", "emails", "websites", "social"):
                     merged[key] = sorted(set(merged[key]) | set(item[key]))
             merged["website_status"] = "Present" if merged["websites"] else "NotListed"
             merged["sources"] = [{"source": r["source"], "id": r["source_id"], "url": r["source_url"]} for r in records]
+            merged["source_metrics"] = {
+                source: {"rating": record.get("rating"), "review_count": record.get("reviews")}
+                for source, record in ((r["source"], r) for r in records)
+            }
             payload = json.dumps(merged, ensure_ascii=False, sort_keys=True)
             db.execute("""UPDATE companies SET revision=revision+CASE WHEN data!=? THEN 1 ELSE 0 END,
                           data=?,updated_at=?,error=NULL WHERE id=?""", (payload, payload, now(), company_id))

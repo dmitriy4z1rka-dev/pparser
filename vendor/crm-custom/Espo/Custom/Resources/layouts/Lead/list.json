@@ -1,0 +1,43 @@
+[
+  {
+    "name": "accountName",
+    "link": true,
+    "width": 25
+  },
+  {
+    "name": "status",
+    "width": 12
+  },
+  {
+    "name": "phoneNumber",
+    "width": 15
+  },
+  {
+    "name": "emailAddress",
+    "width": 17
+  },
+  {
+    "name": "cWebsiteStatus",
+    "width": 12
+  },
+  {
+    "name": "website",
+    "width": 19
+  },
+  {
+    "name": "cYandexRating",
+    "width": 12
+  },
+  {
+    "name": "cYandexReviews",
+    "width": 12
+  },
+  {
+    "name": "cGisRating",
+    "width": 12
+  },
+  {
+    "name": "cGisReviews",
+    "width": 12
+  }
+]

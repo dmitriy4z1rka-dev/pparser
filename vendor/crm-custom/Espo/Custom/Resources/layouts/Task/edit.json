@@ -1,0 +1,37 @@
+[
+  {
+    "label": "Задача",
+    "rows": [
+      [
+        {
+          "name": "name"
+        },
+        {
+          "name": "parent"
+        }
+      ],
+      [
+        {
+          "name": "status"
+        },
+        {
+          "name": "priority"
+        }
+      ],
+      [
+        {
+          "name": "dateStart"
+        },
+        {
+          "name": "dateEnd"
+        }
+      ],
+      [
+        {
+          "name": "description",
+          "fullWidth": true
+        }
+      ]
+    ]
+  }
+]

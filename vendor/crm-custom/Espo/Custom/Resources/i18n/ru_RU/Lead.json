@@ -1,0 +1,40 @@
+{
+  "fields": {
+    "accountName": "Компания",
+    "description": "Заметки менеджера",
+    "source": "Источник",
+    "cWebsiteStatus": "Наличие сайта",
+    "cCategory": "Категория",
+    "cMapSources": "Карточки на картах",
+    "cSocialLinks": "Соцсети и мессенджеры",
+    "cYandexUrl": "Яндекс.Карты",
+    "cGisUrl": "2ГИС",
+    "cGisCreatedAt": "Внесена в базу 2ГИС",
+    "cYandexRating": "Оценка Яндекс.Карт",
+    "cYandexReviews": "Оценок Яндекс.Карт",
+    "cGisRating": "Оценка 2ГИС",
+    "cGisReviews": "Оценок 2ГИС"
+  },
+  "options": {
+    "cWebsiteStatus": {
+      "Present": "Сайт указан",
+      "NotListed": "Сайт не указан",
+      "Unknown": "Не проверено"
+    },
+    "source": {
+      "Maps": "Карты",
+      "Other": "Вручную"
+    },
+    "status": {
+      "New": "Новый",
+      "Assigned": "Назначен",
+      "In Process": "В работе",
+      "Converted": "Успешно",
+      "Recycled": "Позже",
+      "Dead": "Отказ"
+    }
+  },
+  "tooltips": {
+    "cWebsiteStatus": "Не указан: ссылки нет в собранных карточках. Это не доказывает отсутствие сайта."
+  }
+}

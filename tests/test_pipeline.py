@@ -86,6 +86,28 @@ class StoreTest(unittest.TestCase):
         row = next(r for r in self.store.companies() if r["id"] == item_id)
         self.assertEqual(row["data"]["gis_created_at"], "2024-04-05T00:00:00+03:00")
 
+    def test_ratings_are_kept_per_source_and_partial_updates_preserve_them(self):
+        company_id = self.store.ingest(company(rating=4.7, reviews=81))
+        self.store.ingest(company(source="2gis", source_id="201", rating=4.2, reviews=19))
+        self.store.ingest(company(rating=None, reviews=None))
+        data = next(row["data"] for row in self.store.companies() if row["id"] == company_id)
+        self.assertEqual(data["source_metrics"]["yandex"], {"rating": 4.7, "review_count": 81})
+        self.assertEqual(data["source_metrics"]["2gis"], {"rating": 4.2, "review_count": 19})
+
+    def test_startup_migration_canonicalizes_legacy_domains(self):
+        company_id = self.store.ingest(company(site="https://clinic.ru"))
+        with self.store.connect() as db:
+            record = json.loads(db.execute("SELECT data FROM observations WHERE source_id='101'").fetchone()[0])
+            record["websites"] = ["http://пример.рф/"]
+            db.execute("UPDATE observations SET data=? WHERE source='yandex' AND source_id='101'",
+                       (json.dumps(record, ensure_ascii=False),))
+            row = db.execute("SELECT data FROM companies WHERE id=?", (company_id,)).fetchone()
+            data = json.loads(row[0])
+            data["websites"] = ["http://пример.рф/"]
+            db.execute("UPDATE companies SET data=? WHERE id=?", (json.dumps(data, ensure_ascii=False), company_id))
+        migrated = Store(self.store.path)
+        self.assertEqual(migrated.companies()[0]["data"]["websites"], ["http://xn--e1afmkfd.xn--p1ai/"])
+
 
 class NormalizeTest(unittest.TestCase):
     def test_social_is_not_a_company_website(self):
@@ -96,6 +118,9 @@ class NormalizeTest(unittest.TestCase):
     def test_tracking_parameters_removed_but_business_query_kept(self):
         self.assertEqual(website("clinic.ru/?branch=12&utm_source=maps&yclid=1"), "https://clinic.ru/?branch=12")
         self.assertEqual(website("javascript:alert(1)"), "")
+
+    def test_international_domains_are_converted_to_ascii_for_crm(self):
+        self.assertEqual(website("http://пример.рф/"), "http://xn--e1afmkfd.xn--p1ai/")
 
     def test_2gis_keeps_all_contacts_and_stable_id(self):
         record = {"id": "555_random", "type": "branch", "name": "Клиника", "contact_groups": [
@@ -292,6 +317,14 @@ class ApiIntegrationTest(unittest.TestCase):
                                      "gis_created_at": "2025-03-04T10:11:12+03:00"}))
         self.assertEqual(sync(self.store, self.client)["pending"], 0)
         self.assertEqual(self.server.records["1"]["cGisCreatedAt"], "2025-03-04T10:11:12+03:00")
+
+    def test_source_specific_ratings_are_sent_to_crm(self):
+        self.store.ingest(company(rating=4.7, reviews=81))
+        self.store.ingest(company(source="2gis", source_id="404", rating=4.2, reviews=19))
+        self.assertEqual(sync(self.store, self.client)["pending"], 0)
+        remote = self.server.records["1"]
+        self.assertEqual((remote["cYandexRating"], remote["cYandexReviews"]), (4.7, 81))
+        self.assertEqual((remote["cGisRating"], remote["cGisReviews"]), (4.2, 19))
 
     def test_ignored_search_filter_cannot_overwrite_an_unrelated_lead(self):
         self.store.ingest(company())

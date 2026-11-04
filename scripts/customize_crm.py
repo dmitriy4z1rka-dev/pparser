@@ -2,7 +2,7 @@
 import json
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent / "espocrm/custom/Espo/Custom/Resources"
+ROOT = Path(__file__).resolve().parent.parent / "vendor/crm-custom/Espo/Custom/Resources"
 
 
 def write(path, data):
@@ -28,6 +28,10 @@ def main():
             "cYandexUrl": {"type": "url", "clientReadOnly": True},
             "cGisUrl": {"type": "url", "clientReadOnly": True},
             "cGisCreatedAt": {"type": "datetime", "clientReadOnly": True},
+            "cYandexRating": {"type": "float", "decimalPlaces": 1, "clientReadOnly": True},
+            "cYandexReviews": {"type": "int", "clientReadOnly": True},
+            "cGisRating": {"type": "float", "decimalPlaces": 1, "clientReadOnly": True},
+            "cGisReviews": {"type": "int", "clientReadOnly": True},
             "cSocialLinks": {"type": "text"},
             "source": {"options": ["", "Maps", "Other"], "default": "Other"},
         },
@@ -38,14 +42,16 @@ def main():
     write("metadata/clientDefs/Lead.json", {
         "controller": "controllers/record",
         "nameAttribute": "accountName",
-        "views": {"detail": "views/detail"},
-        "recordViews": {"detail": "views/record/detail"},
+        "views": {"detail": "views/detail", "list": "custom:views/lead-list"},
+        "recordViews": {"detail": "custom:views/lead-detail", "edit": "custom:views/lead-edit"},
         "duplicateDisabled": True, "mergeDisabled": True,
-        "defaultSidePanelDisabled": True, "boolFilterList": [],
+        "boolFilterList": [],
         "detailActionList": [],
         "massActionList": ["remove", "massUpdate", "export"],
         "checkAllResultMassActionList": ["massUpdate", "export"],
-        "sidePanels": {"detail": [{"name": "tasks", "reference": "tasks"}],
+        "defaultSidePanelDisabled": False,
+        "defaultSidePanelFieldList": ["description"],
+        "sidePanels": {"detail": [],
                        "detailSmall": [], "edit": [], "editSmall": []},
         "bottomPanels": {"detail": []},
     })
@@ -56,18 +62,21 @@ def main():
         [{"name": "addressCity"}, {"name": "addressStreet"}],
         [{"name": "cCategory", "fullWidth": True}],
         [{"name": "cSocialLinks", "fullWidth": True}],
-        [{"name": "description", "fullWidth": True}],
     ]}, {"label": "Источники", "rows": [[{"name": "cYandexUrl"}, {"name": "cGisUrl"}],
-                                            [{"name": "cGisCreatedAt"}]]}]
+                                            [{"name": "cGisCreatedAt"}],
+                                            [{"name": "cYandexRating"}, {"name": "cYandexReviews"}],
+                                            [{"name": "cGisRating"}, {"name": "cGisReviews"}]]}]
     for layout in ("detail", "edit"):
         write(f"layouts/Lead/{layout}.json", detail if layout == "detail" else detail[:1])
     write("layouts/Lead/list.json", [
         {"name": "accountName", "link": True, "width": 25}, {"name": "status", "width": 12},
         {"name": "phoneNumber", "width": 15}, {"name": "emailAddress", "width": 17},
         {"name": "cWebsiteStatus", "width": 12}, {"name": "website", "width": 19},
+        {"name": "cYandexRating", "width": 12}, {"name": "cYandexReviews", "width": 12},
+        {"name": "cGisRating", "width": 12}, {"name": "cGisReviews", "width": 12},
     ])
-    write("layouts/Lead/filters.json", ["accountName", "status", "cWebsiteStatus", "addressCity", "cCategory"])
-    write("layouts/Lead/sidePanelsDetail.json", {"default": {"disabled": True}, "tasks": {"index": 0}})
+    write("layouts/Lead/filters.json", ["cWebsiteStatus", "addressCity", "cCategory"])
+    write("layouts/Lead/sidePanelsDetail.json", {"default": {"index": 0}})
     write("layouts/Lead/bottomPanelsDetail.json", {"stream": {"disabled": True}})
     write("layouts/Lead/relationships.json", [])
     write("metadata/scopes/Lead.json", {"stream": False})
@@ -75,6 +84,7 @@ def main():
           "collaborators": {"layoutAvailabilityList": []}}})
     write("metadata/clientDefs/Task.json", {"defaultSidePanelDisabled": True, "boolFilterList": [],
                                            "sidePanels": {"detail": [], "edit": []}})
+    write("metadata/clientDefs/User.json", {"recordViews": {"detail": "custom:views/user-detail"}})
     write("metadata/scopes/Task.json", {"stream": False})
     task_detail = [{"label": "Задача", "rows": [
         [{"name": "name"}, {"name": "parent"}],
@@ -101,7 +111,9 @@ def main():
                    "cWebsiteStatus": "Наличие сайта", "cCategory": "Категория",
                    "cMapSources": "Карточки на картах", "cSocialLinks": "Соцсети и мессенджеры",
                    "cYandexUrl": "Яндекс.Карты", "cGisUrl": "2ГИС",
-                   "cGisCreatedAt": "Внесена в базу 2ГИС"},
+                   "cGisCreatedAt": "Внесена в базу 2ГИС",
+                   "cYandexRating": "Оценка Яндекс.Карт", "cYandexReviews": "Оценок Яндекс.Карт",
+                   "cGisRating": "Оценка 2ГИС", "cGisReviews": "Оценок 2ГИС"},
         "options": {"cWebsiteStatus": {"Present": "Сайт указан", "NotListed": "Сайт не указан", "Unknown": "Не проверено"},
                     "source": {"Maps": "Карты", "Other": "Вручную"},
                     "status": {"New": "Новый", "Assigned": "Назначен", "In Process": "В работе", "Converted": "Успешно",

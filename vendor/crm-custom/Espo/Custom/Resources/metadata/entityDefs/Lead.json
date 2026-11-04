@@ -1,0 +1,108 @@
+{
+  "fields": {
+    "assignedUser": {
+      "layoutAvailabilityList": [],
+      "required": false
+    },
+    "teams": {
+      "layoutAvailabilityList": []
+    },
+    "createdBy": {
+      "layoutAvailabilityList": []
+    },
+    "modifiedBy": {
+      "layoutAvailabilityList": []
+    },
+    "accountName": {
+      "required": true
+    },
+    "cLeadgenId": {
+      "type": "varchar",
+      "maxLength": 32,
+      "clientReadOnly": true,
+      "layoutAvailabilityList": []
+    },
+    "cWebsiteStatus": {
+      "type": "enum",
+      "options": [
+        "Present",
+        "NotListed",
+        "Unknown"
+      ],
+      "default": "Unknown",
+      "displayAsLabel": true,
+      "style": {
+        "Present": "success",
+        "NotListed": "warning",
+        "Unknown": "default"
+      }
+    },
+    "cCategory": {
+      "type": "varchar",
+      "maxLength": 255
+    },
+    "cMapSources": {
+      "type": "text",
+      "clientReadOnly": true
+    },
+    "cYandexUrl": {
+      "type": "url",
+      "clientReadOnly": true
+    },
+    "cGisUrl": {
+      "type": "url",
+      "clientReadOnly": true
+    },
+    "cGisCreatedAt": {
+      "type": "datetime",
+      "clientReadOnly": true
+    },
+    "cYandexRating": {
+      "type": "float",
+      "decimalPlaces": 1,
+      "clientReadOnly": true
+    },
+    "cYandexReviews": {
+      "type": "int",
+      "clientReadOnly": true
+    },
+    "cGisRating": {
+      "type": "float",
+      "decimalPlaces": 1,
+      "clientReadOnly": true
+    },
+    "cGisReviews": {
+      "type": "int",
+      "clientReadOnly": true
+    },
+    "cSocialLinks": {
+      "type": "text"
+    },
+    "source": {
+      "options": [
+        "",
+        "Maps",
+        "Other"
+      ],
+      "default": "Other"
+    }
+  },
+  "indexes": {
+    "leadgenId": {
+      "columns": [
+        "cLeadgenId"
+      ],
+      "unique": true
+    }
+  },
+  "collection": {
+    "orderBy": "createdAt",
+    "order": "desc",
+    "textFilterFields": [
+      "accountName",
+      "name",
+      "addressCity",
+      "cCategory"
+    ]
+  }
+}

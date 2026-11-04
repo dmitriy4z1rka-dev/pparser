@@ -1,0 +1,5 @@
+{
+  "recordViews": {
+    "detail": "custom:views/user-detail"
+  }
+}

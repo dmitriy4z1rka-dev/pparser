@@ -1,0 +1,20 @@
+{
+  "fields": {
+    "assignedUser": {
+      "layoutAvailabilityList": [],
+      "required": false
+    },
+    "teams": {
+      "layoutAvailabilityList": []
+    },
+    "createdBy": {
+      "layoutAvailabilityList": []
+    },
+    "modifiedBy": {
+      "layoutAvailabilityList": []
+    },
+    "collaborators": {
+      "layoutAvailabilityList": []
+    }
+  }
+}

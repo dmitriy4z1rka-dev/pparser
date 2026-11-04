@@ -1,0 +1,85 @@
+[
+  {
+    "label": "Компания",
+    "rows": [
+      [
+        {
+          "name": "accountName"
+        },
+        {
+          "name": "status"
+        }
+      ],
+      [
+        {
+          "name": "phoneNumber"
+        },
+        {
+          "name": "emailAddress"
+        }
+      ],
+      [
+        {
+          "name": "website"
+        },
+        {
+          "name": "cWebsiteStatus"
+        }
+      ],
+      [
+        {
+          "name": "addressCity"
+        },
+        {
+          "name": "addressStreet"
+        }
+      ],
+      [
+        {
+          "name": "cCategory",
+          "fullWidth": true
+        }
+      ],
+      [
+        {
+          "name": "cSocialLinks",
+          "fullWidth": true
+        }
+      ]
+    ]
+  },
+  {
+    "label": "Источники",
+    "rows": [
+      [
+        {
+          "name": "cYandexUrl"
+        },
+        {
+          "name": "cGisUrl"
+        }
+      ],
+      [
+        {
+          "name": "cGisCreatedAt"
+        }
+      ],
+      [
+        {
+          "name": "cYandexRating"
+        },
+        {
+          "name": "cYandexReviews"
+        }
+      ],
+      [
+        {
+          "name": "cGisRating"
+        },
+        {
+          "name": "cGisReviews"
+        }
+      ]
+    ]
+  }
+]

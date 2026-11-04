@@ -1,0 +1,10 @@
+{
+  "items": {
+    "notificationBadge": {
+      "disabled": true
+    },
+    "lastViewed": {
+      "disabled": true
+    }
+  }
+}

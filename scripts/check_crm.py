@@ -53,7 +53,7 @@ class InstalledCrmTest(unittest.TestCase):
                           "source_url": "https://yandex.ru/maps/org/123456789/",
                           "name": self.prefix, "city": "Тестовый город", "address": "Тестовая, 1",
                           "phone": "+79990000001", "email": "crm-test@example.invalid",
-                          "site": "https://example.invalid/", **changes})
+                          "site": "https://example.invalid/", "rating": 4.6, "reviews": 42, **changes})
 
     def assert_synced(self, count):
         result = sync(self.store, self.client)
@@ -63,6 +63,10 @@ class InstalledCrmTest(unittest.TestCase):
 
     def test_import_enrichment_branches_and_manager_changes(self):
         local_id = self.store.ingest(self.record())
+        self.store.ingest(normalize({"source": "2gis", "source_id": self.prefix + "-2gis",
+                                     "source_url": "https://2gis.ru/moscow/firm/123456789",
+                                     "name": self.prefix, "city": "Тестовый город", "address": "Тестовая, 1",
+                                     "rating": 4.2, "reviews": 19}))
         self.assert_synced(1)
         leads = self.find_leads()
         self.assertEqual(len(leads), 1)
@@ -71,6 +75,10 @@ class InstalledCrmTest(unittest.TestCase):
         self.assertEqual(remote["cLeadgenId"], local_id)
         self.assertEqual(remote["cWebsiteStatus"], "Present")
         self.assertEqual(remote["cYandexUrl"], "https://yandex.ru/maps/org/123456789/")
+        self.assertEqual(remote["cYandexRating"], 4.6)
+        self.assertEqual(remote["cYandexReviews"], 42)
+        self.assertEqual(remote["cGisRating"], 4.2)
+        self.assertEqual(remote["cGisReviews"], 19)
         self.assertEqual(remote["phoneNumberData"][0]["phoneNumber"], "+79990000001")
         self.assertEqual(remote["emailAddressData"][0]["emailAddress"], "crm-test@example.invalid")
 
@@ -98,7 +106,7 @@ class InstalledCrmTest(unittest.TestCase):
         self.assertTrue(remote["phoneNumberData"][0]["optOut"])
         self.assertTrue(next(e for e in remote["emailAddressData"]
                              if e["emailAddress"] == "crm-test@example.invalid")["optOut"])
-        self.assertEqual(len(json.loads(remote["cMapSources"])), 2)
+        self.assertEqual(len(json.loads(remote["cMapSources"])), 3)
         self.assertEqual(remote["cGisUrl"], "https://2gis.ru/moscow/firm/123456789")
 
         self.store.ingest(self.record(source_id=self.prefix + "-branch", address="Тестовая, 2"))
@@ -126,7 +134,8 @@ class InstalledCrmTest(unittest.TestCase):
         self.assertEqual(metadata["clientDefs"]["App"]["loginView"], "custom:views/local-workspace")
         self.assertFalse(metadata["entityDefs"]["Task"]["fields"]["assignedUser"]["required"])
         fields = metadata["entityDefs"]["Lead"]["fields"]
-        for name in ("cLeadgenId", "cMapSources", "cYandexUrl", "cGisUrl"):
+        for name in ("cLeadgenId", "cMapSources", "cYandexUrl", "cGisUrl",
+                     "cYandexRating", "cYandexReviews", "cGisRating", "cGisReviews"):
             with self.subTest(field=name):
                 self.assertTrue(fields[name]["clientReadOnly"])
                 self.assertFalse(fields[name].get("readOnly", False))

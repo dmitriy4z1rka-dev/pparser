@@ -1,9 +1,12 @@
 **/.git
 **/.venv
 **/node_modules
-**/vendor
 **/__pycache__
 **/*.pyc
-.env
+.env*
+!.env.example
 var
 espocrm/data
+espocrm
+yamaps_parser
+parser-2gis-new

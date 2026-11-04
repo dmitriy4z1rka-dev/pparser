@@ -4,8 +4,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt && playwright install --with-deps chromium
 COPY leadgen ./leadgen
-COPY yamaps_parser ./yamaps_parser
-COPY parser-2gis-new ./parser-2gis-new
+COPY vendor/yamaps_parser ./vendor/yamaps_parser
+COPY vendor/parser-2gis-new ./vendor/parser-2gis-new
 RUN useradd --create-home --uid 10001 collector && mkdir /data && chown collector:collector /data
 USER collector
 ENV LEADGEN_DATA=/data

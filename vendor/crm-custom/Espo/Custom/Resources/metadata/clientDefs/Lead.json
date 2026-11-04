@@ -1,0 +1,38 @@
+{
+  "controller": "controllers/record",
+  "nameAttribute": "accountName",
+  "views": {
+    "detail": "views/detail",
+    "list": "custom:views/lead-list"
+  },
+  "recordViews": {
+    "detail": "custom:views/lead-detail",
+    "edit": "custom:views/lead-edit"
+  },
+  "duplicateDisabled": true,
+  "mergeDisabled": true,
+  "boolFilterList": [],
+  "detailActionList": [],
+  "massActionList": [
+    "remove",
+    "massUpdate",
+    "export"
+  ],
+  "checkAllResultMassActionList": [
+    "massUpdate",
+    "export"
+  ],
+  "defaultSidePanelDisabled": false,
+  "defaultSidePanelFieldList": [
+    "description"
+  ],
+  "sidePanels": {
+    "detail": [],
+    "detailSmall": [],
+    "edit": [],
+    "editSmall": []
+  },
+  "bottomPanels": {
+    "detail": []
+  }
+}

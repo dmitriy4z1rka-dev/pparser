@@ -1,0 +1,8 @@
+{
+  "leadgenSetup": {
+    "className": "Espo\\Custom\\Classes\\ConsoleCommands\\LeadgenSetup",
+    "listed": true,
+    "allowedOptions": [],
+    "allowedFlags": []
+  }
+}

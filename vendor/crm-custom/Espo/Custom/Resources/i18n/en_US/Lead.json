@@ -1,0 +1,20 @@
+{
+  "fields": {
+    "accountName": "Company",
+    "cWebsiteStatus": "Website",
+    "cCategory": "Category",
+    "cMapSources": "Map sources",
+    "cSocialLinks": "Social links",
+    "cGisCreatedAt": "Added to 2GIS catalog"
+  },
+  "options": {
+    "cWebsiteStatus": {
+      "Present": "Listed",
+      "NotListed": "Not listed",
+      "Unknown": "Unknown"
+    },
+    "source": {
+      "Maps": "Maps"
+    }
+  }
+}

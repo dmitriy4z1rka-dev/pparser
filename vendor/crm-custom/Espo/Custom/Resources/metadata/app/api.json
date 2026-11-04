@@ -1,0 +1,5 @@
+{
+  "globalMiddlewareClassNameList": [
+    "Espo\\Custom\\Classes\\Api\\LocalWorkspace"
+  ]
+}

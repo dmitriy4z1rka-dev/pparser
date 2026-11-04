@@ -23,23 +23,37 @@ def main():
             expect(page.locator("#login")).to_have_count(0, timeout=30000)
             expect(page.locator('a[data-action="create"]')).to_be_visible(timeout=30000)
             expect(page.locator('#navbar .menu-container')).to_have_count(0)
+            expect(page.locator('.lead-status-tabs button')).to_have_count(6, timeout=30000)
+            in_progress = page.locator('.lead-status-tabs button').filter(has_text="В работе")
+            in_progress.click()
+            expect(in_progress).to_have_class("btn btn-default active")
+            all_statuses = page.locator('.lead-status-tabs button').filter(has_text="Все")
+            all_statuses.click()
+            expect(all_statuses).to_have_class("btn btn-default active")
             page.screenshot(path=str(artifacts / "crm-leads.png"), full_page=True)
             page.locator('a[data-action="create"]').click()
             page.locator('input[data-name="accountName"]').fill(name)
             expect(page.locator('.field[data-name="assignedUser"]')).to_have_count(0)
             page.locator('input[data-name="website"]').fill("https://example.invalid/")
-            page.locator('textarea[data-name="description"]').fill("Заметка из браузерного теста")
+            note = page.locator('textarea[data-name="description"]')
+            note.fill("Заметка из браузерного теста")
+            note.press("End")
+            note.press("Shift+Enter")
+            note.type("Вторая строка")
             with page.expect_response(lambda response: "/api/v1/Lead" in response.url and
                                       response.request.method == "POST") as created:
-                page.locator('button[data-action="save"]').first.click()
+                note.press("Enter")
             response = created.value
             assert response.ok, (f"UI create returned HTTP {response.status}; "
                                  f"origin={response.request.header_value('origin')}; "
                                  f"site={response.request.header_value('sec-fetch-site')}; "
                                  f"reason={response.header_value('x-status-reason')}")
             lead_id = response.json()["id"]
+            saved_note = response.json().get("description", "")
+            assert saved_note == "Заметка из браузерного теста\nВторая строка", repr(saved_note)
             expect(page.locator('.field[data-name="accountName"]')).to_contain_text(name)
-            expect(page.locator('.field[data-name="description"]')).to_contain_text("Заметка из браузерного теста")
+            expect(page.locator('.field[data-name="description"]')).to_contain_text(
+                "Заметка из браузерного тестаВторая строка")
             assert page.locator('[data-action="convert"]').count() == 0, "Convert action is still present"
             assert page.locator('[data-action="duplicate"]').count() == 0, "Duplicate action is still present"
             page.screenshot(path=str(artifacts / "crm-lead.png"), full_page=True)
@@ -51,7 +65,8 @@ def main():
                 other_page = other_context.new_page()
                 other_page.goto(base + '/#Lead/view/' + lead_id)
                 expect(other_page.locator('.field[data-name="accountName"]')).to_contain_text(name, timeout=30000)
-                expect(other_page.locator('.field[data-name="description"]')).to_contain_text("Заметка из браузерного теста")
+                expect(other_page.locator('.field[data-name="description"]')).to_contain_text(
+                    "Заметка из браузерного тестаВторая строка")
                 expect(other_page.locator('#login')).to_have_count(0)
             finally:
                 other_context.close()

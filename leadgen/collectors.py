@@ -40,7 +40,7 @@ def validate_job(config):
 def yandex_module():
     name = "leadgen_yamaps"
     if name not in sys.modules:
-        spec = importlib.util.spec_from_file_location(name, ROOT / "yamaps_parser/yamaps_parser.py")
+        spec = importlib.util.spec_from_file_location(name, ROOT / "vendor/yamaps_parser/yamaps_parser.py")
         module = importlib.util.module_from_spec(spec)
         sys.modules[name] = module
         spec.loader.exec_module(module)
@@ -71,7 +71,7 @@ def collect(config, emit, checkpoint, seen_sources=None):
                                       settle_ms=int(config["delay"] * 1000), on_organization=receive)
         return
 
-    sys.path.insert(0, str(ROOT / "parser-2gis-new"))
+    sys.path.insert(0, str(ROOT / "vendor/parser-2gis-new"))
     from parser_2gis.config import Configuration
     from parser_2gis.parser import get_parser
     from parser_2gis.writer.writers import FileWriter
