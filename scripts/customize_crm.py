@@ -19,6 +19,7 @@ def main():
         "fields": {
             **ownership_fields,
             "accountName": {"required": True},
+            "phoneNumber": {"typeList": ["Office", "Personal", "Administrator"], "defaultType": "Office"},
             "cLeadgenId": {"type": "varchar", "maxLength": 32, "clientReadOnly": True, "layoutAvailabilityList": []},
             "cWebsiteStatus": {"type": "enum", "options": ["Present", "NotListed", "Unknown"],
                                "default": "Unknown", "displayAsLabel": True,
@@ -117,7 +118,9 @@ def main():
         "options": {"cWebsiteStatus": {"Present": "Сайт указан", "NotListed": "Сайт не указан", "Unknown": "Не проверено"},
                     "source": {"Maps": "Карты", "Other": "Вручную"},
                     "status": {"New": "Новый", "Assigned": "Назначен", "In Process": "В работе", "Converted": "Успешно",
-                               "Recycled": "Позже", "Dead": "Отказ"}},
+                               "Recycled": "Перезвонить позже", "Dead": "Отказ"},
+                    "phoneNumber": {"Office": "Не уточнён", "Personal": "Личный",
+                                    "Administrator": "Администратор"}},
         "tooltips": {"cWebsiteStatus": "Не указан: ссылки нет в собранных карточках. Это не доказывает отсутствие сайта."},
     })
     write("i18n/en_US/Lead.json", {

@@ -1,7 +1,7 @@
 define('custom:views/lead-list', ['views/list'], function (ListView) {
     const statuses = [
         ['', 'Все'], ['New', 'Новый'], ['In Process', 'В работе'],
-        ['Converted', 'Успешно'], ['Recycled', 'Позже'], ['Dead', 'Отказ'],
+        ['Converted', 'Успешно'], ['Recycled', 'Перезвонить позже'], ['Dead', 'Отказ'],
     ];
 
     return class extends ListView {

@@ -30,8 +30,13 @@
       "Assigned": "Назначен",
       "In Process": "В работе",
       "Converted": "Успешно",
-      "Recycled": "Позже",
+      "Recycled": "Перезвонить позже",
       "Dead": "Отказ"
+    },
+    "phoneNumber": {
+      "Office": "Не уточнён",
+      "Personal": "Личный",
+      "Administrator": "Администратор"
     }
   },
   "tooltips": {

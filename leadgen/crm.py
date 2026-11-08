@@ -7,6 +7,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+from .franchise import chain_reason, domain_cities
+
 
 class EspoHttpError(RuntimeError):
     def __init__(self, status, method):
@@ -102,7 +104,15 @@ def sync(store, client=None):
     client = client or EspoClient()
     errors = []
     count = 0
+    filtered = 0
+    cities = domain_cities(store.companies())
     for row in store.companies(pending=True):
+        # A lead already in the CRM may hold manager work, so it is never withheld afterwards.
+        reason = "" if row["crm_id"] else chain_reason(row["data"], cities)
+        if reason:
+            store.filtered(row["id"], row["revision"], reason)
+            filtered += 1
+            continue
         try:
             crm_id = client.upsert(row)
             store.synced(row["id"], row["revision"], crm_id)
@@ -115,4 +125,4 @@ def sync(store, client=None):
             if not (isinstance(exc, EspoHttpError) and exc.method in ("POST", "PUT")
                     and exc.status in (400, 409, 422)):
                 break
-    return {"synced": count, "errors": errors, "pending": len(store.companies(pending=True))}
+    return {"synced": count, "filtered": filtered, "errors": errors, "pending": len(store.companies(pending=True))}

@@ -168,6 +168,11 @@ class Store:
             db.execute("UPDATE companies SET synced_revision=?,crm_id=?,error=NULL WHERE id=?",
                        (revision, crm_id, company_id))
 
+    def filtered(self, company_id, revision, reason):
+        """Keep the company locally, acknowledge this revision and record why it was not sent."""
+        with self.connect() as db:
+            db.execute("UPDATE companies SET synced_revision=?,error=? WHERE id=?", (revision, reason, company_id))
+
     def sync_error(self, company_id, error):
         with self.connect() as db:
             db.execute("UPDATE companies SET error=? WHERE id=?", (str(error), company_id))

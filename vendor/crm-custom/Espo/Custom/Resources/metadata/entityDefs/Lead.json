@@ -16,6 +16,14 @@
     "accountName": {
       "required": true
     },
+    "phoneNumber": {
+      "typeList": [
+        "Office",
+        "Personal",
+        "Administrator"
+      ],
+      "defaultType": "Office"
+    },
     "cLeadgenId": {
       "type": "varchar",
       "maxLength": 32,
