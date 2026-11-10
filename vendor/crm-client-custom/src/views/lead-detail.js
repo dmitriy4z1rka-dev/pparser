@@ -1,4 +1,4 @@
-define('custom:views/lead-detail', ['views/record/detail'], function (DetailRecordView) {
+define('custom:views/lead-detail', ['views/record/detail', 'moment'], function (DetailRecordView, moment) {
     const statuses = ['New', 'In Process', 'Send Offer', 'Cold Email', 'Converted', 'Recycled', 'Dead'];
 
     return class extends DetailRecordView {
@@ -23,12 +23,129 @@ define('custom:views/lead-detail', ['views/record/detail'], function (DetailReco
         setup() {
             super.setup();
             this.listenTo(this.model, 'change:status', () => this.updateStatusButtons());
-            this.on('after:mode-change', () => this.updateStatusButtons());
+            this.on('after:mode-change', () => {
+                this.updateStatusButtons();
+                this.updateCallbacks();
+            });
         }
 
         afterRender() {
             super.afterRender();
             this.renderStatusButtons();
+            this.renderCallbacks();
+        }
+
+        // Callbacks are ordinary Tasks linked to the lead: dateEnd is the call time, description the note.
+        renderCallbacks() {
+            const host = this.element && this.element.querySelector('.middle');
+            if (!host || host.querySelector('.lead-callbacks')) return;
+            const box = document.createElement('div');
+            box.className = 'lead-callbacks panel panel-default';
+            box.style.cssText = 'margin-bottom:12px';
+            box.innerHTML = `
+                <div class="panel-heading"><h4 class="panel-title">Перезвоны</h4></div>
+                <div class="panel-body">
+                    <form class="lead-callback-form" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+                        <input type="date" class="form-control" name="date" required style="width:auto" aria-label="Дата перезвона">
+                        <input type="time" class="form-control" name="time" required style="width:auto" aria-label="Время перезвона">
+                        <input type="text" class="form-control" name="note" maxlength="500" placeholder="Что сказать"
+                               style="flex:1 1 220px;width:auto" aria-label="Что сказать">
+                        <button type="submit" class="btn btn-primary">Назначить перезвон</button>
+                    </form>
+                    <ul class="lead-callback-list list-unstyled" style="margin:10px 0 0"></ul>
+                </div>`;
+            const status = host.querySelector('.lead-status-actions');
+            status ? status.after(box) : host.prepend(box);
+            const form = box.querySelector('form');
+            const next = moment().tz(this.timeZone()).add(1, 'day').hours(10).minutes(0);
+            form.date.value = next.format('YYYY-MM-DD');
+            form.time.value = next.format('HH:mm');
+            form.onsubmit = event => {
+                event.preventDefault();
+                this.createCallback(form);
+            };
+            this.updateCallbacks();
+            this.loadCallbacks();
+        }
+
+        timeZone() {
+            return this.getDateTime().getTimeZone();
+        }
+
+        updateCallbacks() {
+            const box = this.element && this.element.querySelector('.lead-callbacks');
+            if (box) box.style.display = this.mode === this.MODE_EDIT ? 'none' : '';
+        }
+
+        async loadCallbacks() {
+            const list = this.element && this.element.querySelector('.lead-callback-list');
+            if (!list) return;
+            const result = await Espo.Ajax.getRequest('Task', {
+                select: 'name,dateEnd,description,status', orderBy: 'dateEnd', order: 'asc', maxSize: 20,
+                where: [
+                    {type: 'equals', attribute: 'parentType', value: 'Lead'},
+                    {type: 'equals', attribute: 'parentId', value: this.model.id},
+                    {type: 'in', attribute: 'status', value: ['Not Started', 'Started']},
+                ],
+            });
+            list.replaceChildren();
+            if (!result.list.length) {
+                const empty = document.createElement('li');
+                empty.className = 'text-muted';
+                empty.textContent = 'Перезвонов не назначено';
+                list.append(empty);
+            }
+            result.list.forEach(task => {
+                const item = document.createElement('li');
+                item.dataset.id = task.id;
+                item.style.cssText = 'display:flex;gap:8px;align-items:center;padding:4px 0';
+                const when = document.createElement('strong');
+                const due = task.dateEnd ? moment.utc(task.dateEnd).tz(this.timeZone()) : null;
+                when.textContent = due ? due.format('DD.MM HH:mm') : 'без времени';
+                if (due && due.isBefore(moment())) when.className = 'text-danger';
+                const note = document.createElement('span');
+                note.textContent = task.description || task.name;
+                note.style.flex = '1';
+                const done = document.createElement('button');
+                done.type = 'button';
+                done.className = 'btn btn-default btn-sm';
+                done.textContent = 'Сделано';
+                done.onclick = () => this.completeCallback(task.id, done);
+                item.append(when, note, done);
+                list.append(item);
+            });
+        }
+
+        async createCallback(form) {
+            const button = form.querySelector('button');
+            const due = moment.tz(form.date.value + ' ' + form.time.value, 'YYYY-MM-DD HH:mm', this.timeZone());
+            if (!due.isValid()) return;
+            button.disabled = true;
+            try {
+                const company = this.model.get('accountName') || this.model.get('name');
+                await Espo.Ajax.postRequest('Task', {
+                    name: 'Перезвон: ' + company, status: 'Not Started',
+                    parentType: 'Lead', parentId: this.model.id, parentName: company,
+                    dateEnd: due.clone().utc().format('YYYY-MM-DD HH:mm:ss'),
+                    description: form.note.value.trim(),
+                });
+                form.note.value = '';
+                Espo.Ui.success('Перезвон назначен на ' + due.format('DD.MM HH:mm'));
+                await this.loadCallbacks();
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        async completeCallback(id, button) {
+            button.disabled = true;
+            try {
+                await Espo.Ajax.putRequest('Task/' + id, {status: 'Completed'});
+                Espo.Ui.success('Перезвон отмечен выполненным');
+                await this.loadCallbacks();
+            } catch (error) {
+                button.disabled = false;
+            }
         }
 
         renderStatusButtons() {
