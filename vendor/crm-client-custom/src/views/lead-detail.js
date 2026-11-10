@@ -1,5 +1,5 @@
 define('custom:views/lead-detail', ['views/record/detail'], function (DetailRecordView) {
-    const statuses = ['New', 'In Process', 'Converted', 'Recycled', 'Dead'];
+    const statuses = ['New', 'In Process', 'Send Offer', 'Cold Email', 'Converted', 'Recycled', 'Dead'];
 
     return class extends DetailRecordView {
         events = Object.assign({}, super.events, {

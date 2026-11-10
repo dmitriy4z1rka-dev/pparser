@@ -17,6 +17,13 @@ class EspoHttpError(RuntimeError):
         super().__init__(f"EspoCRM: HTTP {status}. Проверьте доступ API, поля и права роли.")
 
 
+class LeadRemoved(RuntimeError):
+    """The lead was sent earlier but no longer exists in the CRM: a manager deleted it."""
+
+
+REMOVED_REASON = "Удалён из CRM вручную, повторно не отправляется"
+
+
 class EspoClient:
     def __init__(self, url=None, api_key=None, sleep=time.sleep):
         self.url = (url or os.environ.get("ESPO_URL", "http://localhost:8080")).rstrip("/") + "/api/v1/"
@@ -59,6 +66,10 @@ class EspoClient:
             existing = self.request("GET", "Lead/" + existing["id"])
             if existing.get("cLeadgenId") != row["id"]:
                 raise RuntimeError("В EspoCRM изменился cLeadgenId найденного лида. Импорт остановлен.")
+        if not existing and row.get("crm_id"):
+            # Recreating it would bring back a lead the manager removed (and the CRM keeps the
+            # deleted row's unique cLeadgenId, so the insert fails anyway).
+            raise LeadRemoved(REMOVED_REASON)
         data = row["data"]
         payload = {
             "cLeadgenId": row["id"], "cWebsiteStatus": data["website_status"],
@@ -108,6 +119,10 @@ def sync(store, client=None):
     cities = domain_cities(store.companies())
     for row in store.companies(pending=True):
         # A lead already in the CRM may hold manager work, so it is never withheld afterwards.
+        if row.get("removed_from_crm"):
+            store.filtered(row["id"], row["revision"], row["error"] or REMOVED_REASON)
+            filtered += 1
+            continue
         reason = "" if row["crm_id"] else chain_reason(row["data"], cities)
         if reason:
             store.filtered(row["id"], row["revision"], reason)
@@ -117,6 +132,9 @@ def sync(store, client=None):
             crm_id = client.upsert(row)
             store.synced(row["id"], row["revision"], crm_id)
             count += 1
+        except LeadRemoved as exc:
+            store.removed(row["id"], row["revision"], str(exc))
+            filtered += 1
         except Exception as exc:
             store.sync_error(row["id"], str(exc))
             errors.append({"id": row["id"], "error": str(exc)})

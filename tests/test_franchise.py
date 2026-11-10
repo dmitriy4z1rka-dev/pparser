@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from leadgen.crm import sync
+from leadgen.crm import REMOVED_REASON, EspoClient, LeadRemoved, sync
 from leadgen.franchise import chain_reason, city_section, domain_cities
 from leadgen.model import normalize
 from leadgen.store import Store
@@ -80,6 +80,41 @@ class SyncFilterTest(unittest.TestCase):
         self.assertEqual(client.sent, ["Старая"])
         self.assertTrue(next(c for c in self.store.companies() if c["id"] == company)["crm_id"])
 
+    def test_upsert_does_not_recreate_a_lead_deleted_in_crm(self):
+        crm = EspoClient("http://crm.test", api_key="test")
+        calls = []
+        crm.request = lambda method, path, payload=None: calls.append(method) or {"list": []}
+        row = {"id": "abc", "crm_id": "crm-abc", "data": {}}
+        with self.assertRaises(LeadRemoved):
+            crm.upsert(row)
+        self.assertEqual(calls, ["GET"])  # Searched only; nothing was created.
+
+    def test_lead_deleted_in_crm_stays_out(self):
+        gone = self.add("Удалённая", "https://gone.ru/")
+        self.add("Живая", "https://alive.ru/")
+        sync(self.store, Client())
+
+        class DeletedClient(Client):
+            def upsert(self, company):
+                if company["id"] == gone:
+                    raise LeadRemoved(REMOVED_REASON)
+                return super().upsert(company)
+
+        for name in ("Удалённая", "Живая"):  # A new collection changes both companies.
+            self.store.ingest(normalize({"source": "2gis", "source_id": name, "name": name, "city": "Оренбург",
+                                         "address": name + " 1", "phone": "+79990000001"}))
+        client = DeletedClient()
+        result = sync(self.store, client)
+        self.assertEqual((client.sent, result["synced"], result["filtered"], result["errors"]),
+                         (["Живая"], 1, 1, []))
+        row = next(c for c in self.store.companies() if c["id"] == gone)
+        self.assertEqual((row["crm_id"], row["removed_from_crm"], row["error"]), (None, 1, REMOVED_REASON))
+
+        self.store.ingest(normalize({"source": "2gis", "source_id": "Удалённая", "name": "Удалённая",
+                                     "city": "Оренбург", "address": "Удалённая 1", "phone": "+79990000002"}))
+        client = Client()
+        result = sync(self.store, client)
+        self.assertEqual((client.sent, result["filtered"], result["pending"]), ([], 1, 0))
 
 if __name__ == "__main__":
     unittest.main()

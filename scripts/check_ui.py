@@ -23,7 +23,7 @@ def main():
             expect(page.locator("#login")).to_have_count(0, timeout=30000)
             expect(page.locator('a[data-action="create"]')).to_be_visible(timeout=30000)
             expect(page.locator('#navbar .menu-container')).to_have_count(0)
-            expect(page.locator('.lead-status-tabs button')).to_have_count(6, timeout=30000)
+            expect(page.locator('.lead-status-tabs button')).to_have_count(8, timeout=30000)
             in_progress = page.locator('.lead-status-tabs button').filter(has_text="В работе")
             in_progress.click()
             expect(in_progress).to_have_class("btn btn-default active")
@@ -57,7 +57,9 @@ def main():
             assert page.locator('[data-action="convert"]').count() == 0, "Convert action is still present"
             assert page.locator('[data-action="duplicate"]').count() == 0, "Duplicate action is still present"
             buttons = page.locator('.lead-status-actions button')
-            expect(buttons).to_have_count(5)
+            expect(buttons).to_have_count(7)
+            expect(page.locator('.lead-status-actions button[data-status="Send Offer"]')).to_have_text("Отправить оффер")
+            expect(page.locator('.lead-status-actions button[data-status="Cold Email"]')).to_have_text("Cold-email")
             expect(page.locator('.lead-status-actions button[data-status="New"]')).to_have_class("btn btn-primary")
             callback = page.locator('.lead-status-actions button[data-status="Recycled"]')
             expect(callback).to_have_text("Перезвонить позже")
