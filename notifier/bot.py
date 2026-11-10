@@ -51,7 +51,8 @@ class Espo:
 
     def open_tasks(self):
         params = {"maxSize": 200, "orderBy": "dateEnd", "order": "asc",
-                  "select": ["name", "status", "dateEnd", "dateEndDate", "description", "parentId", "parentType", "parentName"],
+                  "select": ["name", "status", "dateEnd", "dateEndDate", "description", "parentId", "parentType", "parentName",
+                             "createdAt"],
                   "where": [{"type": "in", "attribute": "status", "value": OPEN}]}
         return self.request("GET", "Task?" + urlencode({"searchParams": json.dumps(params)})).get("list") or []
 
@@ -191,11 +192,38 @@ class Notifier:
             lines.append(f'<a href="{self.public_url}/#Lead/view/{lead["id"]}">Открыть лида в CRM</a>')
         return "\n".join(lines)
 
+    def day_label(self, due):
+        today = self.local(self.clock()).date()
+        day = self.local(due).date()
+        word = "сегодня" if day == today else "завтра" if day == today + timedelta(days=1) else f"{day:%d.%m}"
+        return f"{word} в {self.local(due):%H:%M}"
+
+    def confirm_new(self, task, now):
+        """Tell right away which day a callback set in the CRM landed on; the date is easy to miss there."""
+        due = parse_due(task)
+        created = task.get("createdAt")
+        if not due or task.get("parentType") != "Lead" or not created or due <= now + EARLY:
+            return False
+        created = datetime.strptime(created, ESPO_FORMAT).replace(tzinfo=timezone.utc)
+        key = f"{task['id']}:new:{task['dateEnd']}"
+        if now - created > timedelta(minutes=15) or self.sent.has(key):
+            return False
+        lead = self.lead_info(task) or {}
+        company = lead.get("accountName") or task.get("parentName") or ""
+        text = f"📌 Перезвон назначен: <b>{html.escape(company)}</b> — {self.day_label(due)}"
+        if task.get("description"):
+            text += "\n💬 " + html.escape(task["description"])
+        self.telegram.send(self.chat_id, text)
+        self.sent.add(key)
+        log.info("Подтверждён новый перезвон %s", task["id"])
+        return True
+
     def check_due(self):
         now = self.clock()
         self.leads = {}
         sent = 0
         for task in self.espo.open_tasks():
+            self.confirm_new(task, now)
             due = parse_due(task)
             if not due or now < due - EARLY or now > due + LATE:
                 continue

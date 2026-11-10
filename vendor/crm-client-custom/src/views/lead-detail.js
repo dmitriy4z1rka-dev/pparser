@@ -57,7 +57,12 @@ define('custom:views/lead-detail', ['views/record/detail', 'moment'], function (
             const status = host.querySelector('.lead-status-actions');
             status ? status.after(box) : host.prepend(box);
             const form = box.querySelector('form');
-            const next = moment().tz(this.timeZone()).add(1, 'day').hours(10).minutes(0);
+            // Today, an hour from now rounded to 15 minutes; after 20:00 — tomorrow at 10:00.
+            let next = moment().tz(this.timeZone()).add(1, 'hour');
+            next.minutes(Math.ceil(next.minutes() / 15) * 15).seconds(0);
+            if (next.hours() >= 21 || next.date() !== moment().tz(this.timeZone()).date()) {
+                next = moment().tz(this.timeZone()).add(1, 'day').hours(10).minutes(0);
+            }
             form.date.value = next.format('YYYY-MM-DD');
             form.time.value = next.format('HH:mm');
             form.onsubmit = event => {
@@ -101,7 +106,10 @@ define('custom:views/lead-detail', ['views/record/detail', 'moment'], function (
                 item.style.cssText = 'display:flex;gap:8px;align-items:center;padding:4px 0';
                 const when = document.createElement('strong');
                 const due = task.dateEnd ? moment.utc(task.dateEnd).tz(this.timeZone()) : null;
-                when.textContent = due ? due.format('DD.MM HH:mm') : 'без времени';
+                const now = moment().tz(this.timeZone());
+                const day = !due ? '' : due.isSame(now, 'day') ? 'Сегодня' :
+                    due.isSame(now.clone().add(1, 'day'), 'day') ? 'Завтра' : due.format('DD.MM');
+                when.textContent = due ? day + ' ' + due.format('HH:mm') : 'без времени';
                 if (due && due.isBefore(moment())) when.className = 'text-danger';
                 const note = document.createElement('span');
                 note.textContent = task.description || task.name;
@@ -120,6 +128,10 @@ define('custom:views/lead-detail', ['views/record/detail', 'moment'], function (
             const button = form.querySelector('button');
             const due = moment.tz(form.date.value + ' ' + form.time.value, 'YYYY-MM-DD HH:mm', this.timeZone());
             if (!due.isValid()) return;
+            if (due.isBefore(moment())) {
+                Espo.Ui.warning('Это время уже прошло: ' + due.format('DD.MM HH:mm') + '. Проверьте дату.');
+                return;
+            }
             button.disabled = true;
             try {
                 const company = this.model.get('accountName') || this.model.get('name');
@@ -130,7 +142,9 @@ define('custom:views/lead-detail', ['views/record/detail', 'moment'], function (
                     description: form.note.value.trim(),
                 });
                 form.note.value = '';
-                Espo.Ui.success('Перезвон назначен на ' + due.format('DD.MM HH:mm'));
+                const today = due.isSame(moment().tz(this.timeZone()), 'day');
+                Espo.Ui.success('Перезвон назначен: ' + (today ? 'сегодня' : 'на ' + due.format('DD.MM')) +
+                    ' в ' + due.format('HH:mm'));
                 await this.loadCallbacks();
             } finally {
                 button.disabled = false;

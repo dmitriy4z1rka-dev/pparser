@@ -84,6 +84,21 @@ class NotifierTest(unittest.TestCase):
         self.assertIn("15:10", texts[1])  # Orenburg time.
         self.assertEqual(self.telegram.messages[1][2], "t1")  # Carries the «Сделано» button.
 
+    def test_new_callback_is_confirmed_with_its_day(self):
+        self.task["dateEnd"] = stamp(NOW + timedelta(days=1))
+        self.task["createdAt"] = stamp(NOW - timedelta(minutes=1))
+        self.bot.check_due()
+        self.bot.check_due()
+        self.assertEqual(len(self.telegram.messages), 1)
+        self.assertIn("завтра в 15:00", self.telegram.messages[0][1])
+        self.assertIn("Тестовый салон", self.telegram.messages[0][1])
+
+    def test_old_callbacks_are_not_confirmed(self):
+        self.task["dateEnd"] = stamp(NOW + timedelta(days=1))
+        self.task["createdAt"] = stamp(NOW - timedelta(hours=1))
+        self.bot.check_due()
+        self.assertEqual(self.telegram.messages, [])
+
     def test_moved_callback_is_announced_again(self):
         self.bot.check_due()
         self.task["dateEnd"] = stamp(NOW + timedelta(minutes=5))
